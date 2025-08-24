@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Brainrot Generator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+        }
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: #111827; /* bg-gray-900 */
+            color: #ffffff;
+            overflow-x: hidden;
+        }
+        #particle-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            pointer-events: none;
+        }
+        .content-wrapper {
+            position: relative;
+            z-index: 1;
+        }
+        .full-page {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        .font-press-start {
+            font-family: 'Press Start 2P', cursive;
+        }
+        .card {
+            background-color: #1f2937; /* bg-gray-800 */
+            border: 2px solid #374151; /* bg-gray-700 */
+            transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        .card:hover {
+            transform: scale(1.05);
+            border-color: #3b82f6; /* blue-500 */
+            box-shadow: 0 0 20px rgba(59, 130, 246, 0.5);
+        }
+        .card.selected {
+            border-color: #60a5fa; /* blue-400 */
+            box-shadow: 0 0 15px #60a5fa;
+        }
+        .btn-generate {
+            background: linear-gradient(90deg, #3b82f6, #2563eb);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .btn-generate:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 20px #3b82f6;
+        }
+        .card-image-container {
+            aspect-ratio: 1 / 1;
+            width: 100%;
+            background-color: #111827; /* bg-gray-900 */
+        }
+        .card-image-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+        .nickname-input::placeholder {
+            color: #6b7280;
+        }
+        #progress-bar {
+            transition: width 0.5s ease-in-out;
+        }
+        @keyframes shake {
+            10%, 90% { transform: translateX(-1px); }
+            20%, 80% { transform: translateX(2px); }
+            30%, 50%, 70% { transform: translateX(-4px); }
+            40%, 60% { transform: translateX(4px); }
+        }
+        .shake {
+            animation: shake 0.82s cubic-bezier(.36,.07,.19,.97) both;
+        }
+        
+        /* Success Page Styles */
+        @keyframes glow {
+            0% { text-shadow: 0 0 5px #3b82f6, 0 0 10px #3b82f6; }
+            100% { text-shadow: 0 0 10px #60a5fa, 0 0 20px #60a5fa; }
+        }
+        .success-title {
+            animation: glow 1.5s infinite alternate;
+        }
+        .success-card {
+            background-color: #1f2937;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white">
+    <canvas id="particle-canvas"></canvas>
+
+    <!-- Main Selection Page -->
+    <div id="selection-page" class="content-wrapper">
+        <div class="container mx-auto p-4 max-w-2xl">
+            <header class="text-center my-8">
+                <img src="https://i.postimg.cc/zvz7khQN/Secret-Lucky-Block-Steal-a-Brainrot.png" alt="Game Logo" class="w-32 h-32 md:w-36 md:h-36 mx-auto rounded-full border-4 border-blue-500 shadow-lg mb-4">
+                <h1 class="text-3xl sm:text-4xl md:text-5xl font-press-start text-blue-400 leading-tight">Steal a Brainrot</h1>
+                <p class="text-xl sm:text-2xl md:text-3xl font-press-start text-gray-400 mt-1">Generator</p>
+                <p class="text-gray-400 mt-6">Choose your favorite Brainrots and generate!</p>
+                <div class="mt-6 mb-8">
+                    <input id="nickname-input" type="text" placeholder="Enter your Roblox Nickname" class="nickname-input w-full max-w-md mx-auto bg-gray-800 border-2 border-gray-700 text-white text-center text-lg rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-3 transition">
+                </div>
+            </header>
+            <main>
+                <div id="brainrot-grid" class="grid grid-cols-2 gap-6 md:gap-8">
+                    <!-- Brainrot items will be injected here -->
+                </div>
+                <div class="text-center mt-12 mb-8">
+                    <button id="generate-btn" class="btn-generate text-white font-bold py-4 px-8 rounded-full text-2xl font-press-start shadow-xl">
+                        SEND
+                    </button>
+                </div>
+            </main>
+        </div>
+    </div>
+    
+    <!-- Loading Page -->
+    <div id="loading-page" class="content-wrapper hidden full-page">
+        <div class="bg-gray-800 rounded-lg shadow-2xl p-8 text-center max-w-sm mx-auto border-2 border-blue-500 w-11/12">
+            <h2 class="text-2xl font-bold text-blue-400 mb-4">Generating...</h2>
+            <div class="w-full bg-gray-700 rounded-full h-4 mb-4 overflow-hidden">
+                <div id="progress-bar" class="bg-blue-500 h-4 rounded-full"></div>
+            </div>
+            <p id="loading-status" class="text-gray-400 text-sm h-5">Initializing...</p>
+        </div>
+    </div>
+
+    <!-- Success Page -->
+    <div id="success-page" class="content-wrapper hidden full-page p-4">
+         <div class="text-center w-full max-w-4xl">
+            <h1 class="success-title text-5xl md:text-6xl font-press-start text-blue-400">Success!</h1>
+            <p id="success-message" class="text-gray-300 my-6 text-lg">Your Brainrot has been successfully generated and sent!</p>
+            <div id="success-grid" class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-4 my-8 max-h-64 overflow-y-auto p-4 bg-gray-900/50 rounded-lg">
+                <!-- Selected brainrots will be injected here -->
+            </div>
+            <button id="go-back-btn" class="btn-generate text-white font-bold py-3 px-8 rounded-full text-xl font-press-start shadow-xl">
+                Generate Again
+            </button>
+        </div>
+    </div>
+
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const brainrots = [
+                { name: "Chimpanzini Spiderini", img: "https://static.wikia.nocookie.net/stealabr/images/b/bd/Chimpanzini_Spiderini_%28Steal_a_Brainrot%29.webp" },
+                { name: "Tipi Topi Taco", img: "https://static.wikia.nocookie.net/stealabr/images/7/72/Tipi_Topi_Taco.png" },
+                { name: "Bombardini Tortinii", img: "https://static.wikia.nocookie.net/stealabr/images/4/44/Bombardini_Tortinii.png" },
+                { name: "Espresso Signora", img: "https://static.wikia.nocookie.net/stealabr/images/3/38/Espresso_Signora_%28Steal_a_Brainrot%29.webp" },
+                { name: "Uncilto Samito", img: "https://static.wikia.nocookie.net/stealabr/images/e/ea/Unclito-Samito.png" },
+                { name: "Statutino Libertino", img: "https://static.wikia.nocookie.net/stealabr/images/e/ee/Statutino_Libertino_%28Steal_a_Brainrot%29.webp" },
+                { name: "Matteo", img: "https://static.wikia.nocookie.net/stealabr/images/6/6e/Matteo_%28Steal_a_Brainrot%29.webp" },
+                { name: "Los Hotspotsitos", img: "https://static.wikia.nocookie.net/stealabr/images/9/95/Los_Hotspotsitos2.png" },
+                { name: "Karkerkar kurkur", img: "https://i.postimg.cc/W1NVJY8Y/Karkerkarkurkur.png" },
+                { name: "dragon cannelloni", img: "https://tr.rbxcdn.com/180DAY-b14aa19aee59dcd2e3fdc474bc8ed42e/420/420/Hat/Webp/noFilter" },
+                { name: "Esok Sekolah", img: "https://i.postimg.cc/SQ6H77JB/esok-removebg-preview.png" },
+                { name: "Los Combinasionas", img: "https://tr.rbxcdn.com/180DAY-a06c75cf7c357e4e5ac2ce5b7192268d/420/420/BackAccessory/Webp/noFilter" },
+                { name: "La Grande Combinasion", img: "https://static.wikia.nocookie.net/stealabr/images/f/fc/La_Grande_Combinasion_%28Steal_a_Brainrot%29.webp" },
+                { name: "Trippi Troppi Troppa Trippa", img: "https://i.postimg.cc/qvzmY8vM/Trippi-Troppi-Troppa-Trippa.png" },
+                { name: "Chicleteira Bicicleteira", img: "https://i.postimg.cc/zB5FJW8h/Chicleteira-Bicicleteira.png" },
+                { name: "Agarrini La Palini", img: "https://i.postimg.cc/tCVZMJHG/Agarrini-La-Palini.png" },
+                { name: "Rainbow Odin Din Din Dun", img: "https://i.postimg.cc/0QQrd2C3/all-server-rainbow-odin-din-din-dun.png" },
+                { name: "Rainbow Graipuss Medussi", img: "https://i.postimg.cc/BbP6kYkB/rainbow.png" },
+                { name: "Rainbow Tralalero Tralala", img: "https://i.postimg.cc/J7s5R1WP/all-server-rainbow-tralalero-tralala.png" },
+                { name: "LOS TRALALERITOS", img: "https://tr.rbxcdn.com/180DAY-26182675b92f2ad9a61ecae30a2b8ead/420/420/BackAccessory/Webp/noFilter" },
+                { name: "LAS TRALALERITAS", img: "https://tr.rbxcdn.com/180DAY-08e3120deac49b7bc1227de3932b255c/420/420/Hat/Webp/noFilter" },
+                { name: "TRALALERO TRALALA LAVA", img: "https://tr.rbxcdn.com/180DAY-13af1b4d458233fb3fb4aa49a7ee5520/420/420/WaistAccessory/Webp/noFilter" },
+                { name: "COCOFANTO ELEFANTO", img: "https://tr.rbxcdn.com/180DAY-308310f72b54e617e6039983ffa8987e/420/420/LayeredAccessory/Webp/noFilter" },
+                { name: "BALLERINO LOLOLO", img: "https://tr.rbxcdn.com/180DAY-8722139c40ed43ae6cb73b046062ba7f/420/420/Hat/Webp/noFilter" },
+                { name: "LA VACCA SATURNO SATURNITA", img: "https://tr.rbxcdn.com/180DAY-038dd6b56d93422289d07f8f3764d75d/420/420/JacketAccessory/Webp/noFilter" },
+                { name: "NUCLEARO DINOSSAURO", img: "https://tr.rbxcdn.com/180DAY-b87295a7d3ed3eb3f8560bb3af747093/420/420/Hat/Webp/noFilter" },
+                { name: "TORRTUGINNI DRAGONFRUTINI", img: "https://tr.rbxcdn.com/180DAY-f4e2a91bab54e236f94b196b48dcdb12/420/420/LayeredAccessory/Png/noFilter" },
+                { name: "POT HOTSPOT", img: "https://tr.rbxcdn.com/180DAY-13ef80ef66437af24e15e6f99fde37e0/420/420/LayeredAccessory/Webp/noFilter" },
+                { name: "ODIN DIN DIN DUN", img: "https://tr.rbxcdn.com/180DAY-f34b12c0edcb4df38be51c74445b3b93/420/420/LayeredAccessory/Webp/noFilter" },
+                { name: "GRAIPUSS MEDUSSI", img: "https://tr.rbxcdn.com/180DAY-b4771e0464cf7ec27ce1e34803021996/420/420/LayeredAccessory/Webp/noFilter" },
+                { name: "BRAINROT NUCLEARO DINOSSAURO", img: "https://tr.rbxcdn.com/180DAY-57fa46e1fdc1ef36467bd6c630058ad3/420/420/JacketAccessory/Webp/noFilter" },
+                { name: "GARAMA AND MADUNDUNG", img: "https://i.postimg.cc/7L4xXYq9/Sh9-Puq-Zx5-DF7j73-KDJd-Hx-CNjj-HS0-GAHBFl-F3jv-Bn.png" },
+                { name: "DRAGON CANNELLONI", img: "https://tr.rbxcdn.com/180DAY-b14aa19aee59dcd2e3fdc474bc8ed42e/420/420/Hat/Webp/noFilter" },
+                { name: "LA GRANDE", img: "https://tr.rbxcdn.com/180DAY-f1a032865ad977022eedb4accebdc3df/420/420/LayeredAccessory/Webp/noFilter" },
+            ];
+
+            const selectionPage = document.getElementById('selection-page');
+            const loadingPage = document.getElementById('loading-page');
+            const successPage = document.getElementById('success-page');
+
+            const grid = document.getElementById('brainrot-grid');
+            const generateBtn = document.getElementById('generate-btn');
+            const goBackBtn = document.getElementById('go-back-btn');
+            const nicknameInput = document.getElementById('nickname-input');
+            
+            const progressBar = document.getElementById('progress-bar');
+            const loadingStatus = document.getElementById('loading-status');
+            const successMessage = document.getElementById('success-message');
+            const successGrid = document.getElementById('success-grid');
+
+            // Populate selection grid
+            brainrots.forEach(brainrot => {
+                const card = document.createElement('div');
+                card.className = 'card rounded-lg p-4 text-center cursor-pointer';
+                card.dataset.name = brainrot.name;
+                card.dataset.img = brainrot.img;
+                card.innerHTML = `
+                    <div class="card-image-container rounded-md overflow-hidden">
+                        <img src="${brainrot.img}" alt="${brainrot.name}" class="rounded-sm" onerror="this.src='https://placehold.co/200x200/1f2937/ffffff?text=?';">
+                    </div>
+                    <p class="text-sm mt-3 font-bold h-10 flex items-center justify-center">${brainrot.name}</p>
+                `;
+                card.addEventListener('click', () => {
+                    card.classList.toggle('selected');
+                });
+                grid.appendChild(card);
+            });
+            
+            // Generate button logic
+            generateBtn.addEventListener('click', () => {
+                const selectedCards = document.querySelectorAll('.card.selected');
+                const nickname = nicknameInput.value.trim();
+
+                if (nickname === '') {
+                    nicknameInput.classList.add('shake');
+                    setTimeout(() => nicknameInput.classList.remove('shake'), 820);
+                    return;
+                }
+                if (selectedCards.length === 0) {
+                    generateBtn.classList.add('shake');
+                    setTimeout(() => generateBtn.classList.remove('shake'), 820);
+                    return;
+                }
+
+                const selectedBrainrots = Array.from(selectedCards).map(card => ({
+                    name: card.dataset.name,
+                    img: card.dataset.img
+                }));
+
+                selectionPage.classList.add('hidden');
+                loadingPage.classList.remove('hidden');
+                
+                progressBar.style.width = '0%';
+                
+                let progress = 0;
+                const interval = setInterval(() => {
+                    progress += Math.random() * 10;
+                    if (progress > 100) progress = 100;
+                    progressBar.style.width = progress + '%';
+
+                    if (progress < 30) {
+                        loadingStatus.textContent = 'Connecting to Roblox servers...';
+                    } else if (progress < 70) {
+                        loadingStatus.textContent = `Authenticating ${nickname}...`;
+                    } else {
+                        loadingStatus.textContent = 'Sending Brainrots...';
+                    }
+
+                    if (progress === 100) {
+                        clearInterval(interval);
+                        setTimeout(() => {
+                            loadingPage.classList.add('hidden');
+                            
+                            const sanitizedNickname = nickname.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+                            successMessage.innerHTML = `Brainrots successfully sent to <strong class="text-blue-400">${sanitizedNickname}</strong>!`;
+                            
+                            successGrid.innerHTML = ''; // Clear previous results
+                            selectedBrainrots.forEach(brainrot => {
+                                const successCard = document.createElement('div');
+                                successCard.className = 'success-card rounded-md p-2 text-center';
+                                successCard.innerHTML = `
+                                    <img src="${brainrot.img}" alt="${brainrot.name}" class="w-full h-auto object-cover rounded-sm" onerror="this.src='https://placehold.co/100x100/1f2937/ffffff?text=?';">
+                                    <p class="text-xs mt-2 font-semibold truncate">${brainrot.name}</p>
+                                `;
+                                successGrid.appendChild(successCard);
+                            });
+
+                            successPage.classList.remove('hidden');
+                        }, 500);
+                    }
+                }, 500);
+            });
+
+            // Go Back button logic
+            goBackBtn.addEventListener('click', () => {
+                successPage.classList.add('hidden');
+                nicknameInput.value = '';
+                document.querySelectorAll('.card.selected').forEach(card => card.classList.remove('selected'));
+                selectionPage.classList.remove('hidden');
+            });
+
+            // Particle background animation
+            const canvas = document.getElementById('particle-canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+
+            let particlesArray;
+
+            class Particle {
+                constructor(x, y, directionX, directionY, size, color) {
+                    this.x = x; this.y = y; this.directionX = directionX; this.directionY = directionY; this.size = size; this.color = color;
+                }
+                draw() {
+                    ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2, false); ctx.fillStyle = this.color; ctx.fill();
+                }
+                update() {
+                    if (this.x > canvas.width || this.x < 0) { this.directionX = -this.directionX; }
+                    if (this.y > canvas.height || this.y < 0) { this.directionY = -this.directionY; }
+                    this.x += this.directionX; this.y += this.directionY; this.draw();
+                }
+            }
+
+            function initParticles() {
+                particlesArray = [];
+                let numberOfParticles = (canvas.height * canvas.width) / 9000;
+                for (let i = 0; i < numberOfParticles; i++) {
+                    let size = (Math.random() * 2) + 1;
+                    let x = (Math.random() * ((innerWidth - size * 2) - (size * 2)) + size * 2);
+                    let y = (Math.random() * ((innerHeight - size * 2) - (size * 2)) + size * 2);
+                    let directionX = (Math.random() * .4) - .2;
+                    let directionY = (Math.random() * .4) - .2;
+                    let color = 'rgba(96, 165, 250, 0.6)';
+                    particlesArray.push(new Particle(x, y, directionX, directionY, size, color));
+                }
+            }
+
+            function animateParticles() {
+                requestAnimationFrame(animateParticles);
+                ctx.clearRect(0,0,innerWidth, innerHeight);
+                for (let i = 0; i < particlesArray.length; i++) {
+                    particlesArray[i].update();
+                }
+            }
+
+            initParticles();
+            animateParticles();
+
+            window.addEventListener('resize', () => {
+                canvas.width = innerWidth;
+                canvas.height = innerHeight;
+                initParticles();
+            });
+        });
+    </script>
+
+</body>
+</html>
